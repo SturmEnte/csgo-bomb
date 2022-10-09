@@ -1,7 +1,14 @@
 #include <LiquidCrystal.h>
 #include <Keypad.h>
 
+enum Mode {
+  PASSWORD_INPUT,
+  TIMER_RUNNING,
+  DETONATED
+};
+
 const int MAX_PASSWORD_LENGTH = 4;
+const int DETONATION_TIME = 60;     // In seconds
 
 const byte ROWS = 4;
 const byte COLS = 3;
@@ -23,9 +30,13 @@ void setup() {
   lcd.begin(16, 2);
 }
 
+Mode mode = PASSWORD_INPUT;
+
 int passwordLength = 0;
-bool passwordRegistered = false;
 char password[MAX_PASSWORD_LENGTH];
+
+int timer = DETONATION_TIME;
+unsigned long lastTick;
 
 void loop() {
   char input = keypad.getKey();
@@ -37,23 +48,42 @@ void loop() {
         password[passwordLength] = input;
         passwordLength++;        
       }
-    } else if(!passwordRegistered) {
+    } else if(mode == PASSWORD_INPUT) {
       if(input == '#') {
-        passwordRegistered = true;
+        mode = TIMER_RUNNING;
+        lastTick = millis();
       } else if(input == '*') {
         clearPassword();
       }
     }
   }
 
+  if(mode == TIMER_RUNNING) {
+    if(timer > 0 && lastTick + 1000 <= millis()) {
+      timer--;            
+      lastTick = millis();              
+    }
+  }
+
+  if(timer == 0) {
+    mode = DETONATED;
+  }
+
   // Print
-  if(!passwordRegistered) {
+  if(mode == PASSWORD_INPUT) {
     lcd.print("Password:");
     lcd.setCursor(0, 1);
     for(int i = 0; i < passwordLength; i++) {
       lcd.print(password[i]);
     }
+  } else if(mode == TIMER_RUNNING) {
+    lcd.print("Detonating in ");
+    lcd.print(timer);
+    lcd.print(" seconds");
+  } else {
+    lcd.print("Detonated");
   }
+  
   delay(100);
   lcd.clear();
 }
