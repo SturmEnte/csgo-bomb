@@ -4,10 +4,11 @@
 enum Mode {
   PASSWORD_INPUT,
   TIMER_RUNNING,
-  DETONATED
+  DETONATED,
+  DEFUSED
 };
 
-const int MAX_PASSWORD_LENGTH = 4;
+const int PASSWORD_LENGTH = 4;
 const int DETONATION_TIME = 60;     // In seconds
 
 const byte ROWS = 4;
@@ -33,7 +34,8 @@ void setup() {
 Mode mode = PASSWORD_INPUT;
 
 int passwordLength = 0;
-char password[MAX_PASSWORD_LENGTH];
+char password[PASSWORD_LENGTH];
+char defuseInput[PASSWORD_LENGTH];
 
 int timer = DETONATION_TIME;
 unsigned long lastTick;
@@ -41,19 +43,43 @@ unsigned long lastTick;
 void loop() {
   char input = keypad.getKey();
   if(input) {
-    if(passwordLength < MAX_PASSWORD_LENGTH) {
-      if(input == '*') {
-        clearPassword();
-      } else if(input != '#') {
-        password[passwordLength] = input;
-        passwordLength++;        
+    if(mode == PASSWORD_INPUT) {
+      if(passwordLength < PASSWORD_LENGTH) {
+        if(input == '*') {
+          clearPassword();
+        } else if(input != '#') {
+          password[passwordLength] = input;
+          passwordLength++;        
+        }
+      } else {
+        if(input == '#') {
+          mode = TIMER_RUNNING;
+          lastTick = millis();
+          passwordLength = 0;
+        } else if(input == '*') {
+          clearPassword();
+        }
       }
-    } else if(mode == PASSWORD_INPUT) {
-      if(input == '#') {
-        mode = TIMER_RUNNING;
-        lastTick = millis();
-      } else if(input == '*') {
-        clearPassword();
+    } else if(mode == TIMER_RUNNING) {
+      if(input == '*') {
+        passwordLength = 0;
+      } else if(input == '#' && passwordLength == PASSWORD_LENGTH) {
+        bool allEqual = true;
+
+        for(int i = 0; i < passwordLength; i++) {
+          if(password[i] != defuseInput[i]) {
+            allEqual = false;
+          }
+        }
+        
+        if(allEqual) {
+          mode = DEFUSED;
+        } else {
+          mode = DETONATED;
+        }
+      } else {
+        defuseInput[passwordLength] = input;   
+        passwordLength++;
       }
     }
   }
@@ -79,9 +105,14 @@ void loop() {
   } else if(mode == TIMER_RUNNING) {
     lcd.print("Detonating in ");
     lcd.print(timer);
-    lcd.print(" seconds");
-  } else {
+    lcd.setCursor(0, 1);
+    for(int i = 0; i < passwordLength; i++) {
+      lcd.print(defuseInput[i]);
+    }
+  } else if(mode == DETONATED) {
     lcd.print("Detonated");
+  } else if(mode == DEFUSED) {
+    lcd.print("Defused");
   }
   
   delay(100);
