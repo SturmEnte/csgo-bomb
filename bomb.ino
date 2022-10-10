@@ -95,7 +95,7 @@ void loop() {
     mode = DETONATED;
   }
 
-  // Print
+  // Render to the display
   if(mode == PASSWORD_INPUT) {
     lcd.print("Password:");
     lcd.setCursor(0, 1);
